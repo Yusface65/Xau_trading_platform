@@ -91,21 +91,24 @@ signal, prob = multi_tf_signal(df_1h, df_3m, fvg_1h, fvg_3m, model, features)
 
 # -------- Display Metrics --------
 st.title("Gold XAU/USD Multi-Timeframe Trading Dashboard")
-st.metric("Current Price", df_3m['Close'].iloc[-1])
+st.metric("Current Price", f"${df_3m['Close'].iloc[-1]:.2f}")
 st.metric("Signal", signal)
 st.metric("Prediction Confidence", f"{prob*100:.2f}%")
 
 # -------- Plot Charts --------
-def plot_chart(df, title, fvg_list):
+def plot_chart(df, title, fvg_list, max_fvg=10, fvg_span=20):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Close', line=dict(color='blue')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA50'], name='SMA50', line=dict(color='orange')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA200'], name='SMA200', line=dict(color='red')))
-    # Plot FVG zones
-    for fvg in fvg_list:
+    # Plot only the most recent FVG zones with limited span
+    recent_fvgs = fvg_list[-max_fvg:]
+    for fvg in recent_fvgs:
         color = 'green' if fvg[1]=='bullish' else 'red'
-        fig.add_shape(type="rect", x0=df.index[fvg[0]], x1=df.index[-1],
-                      y0=fvg[2], y1=fvg[3], fillcolor=color, opacity=0.2)
+        end_idx = min(fvg[0] + fvg_span, len(df) - 1)
+        fig.add_shape(type="rect", x0=df.index[fvg[0]], x1=df.index[end_idx],
+                      y0=fvg[2], y1=fvg[3], fillcolor=color, opacity=0.15,
+                      line=dict(color=color, width=1))
     fig.update_layout(title=title)
     st.plotly_chart(fig)
 
