@@ -1,8 +1,3 @@
-xau_trading_dashboard/
-│
-├── dashboard.py          # Main Streamlit app
-├── requirements.txt      # Dependencies
-└── README.md             # Instructions
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -12,23 +7,26 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
 # -------- Fetch Data --------
-@st.cache
+@st.cache_data
 def fetch_data(symbol, period, interval):
     df = yf.download(symbol, period=period, interval=interval)
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
     df = df[['Open','High','Low','Close','Volume']]
     return df
 
 # -------- Indicators --------
 def calculate_indicators(df):
-    df['SMA50'] = df['Close'].rolling(50).mean()
-    df['SMA200'] = df['Close'].rolling(200).mean()
-    df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
-    df['RSI'] = ta.momentum.RSIIndicator(df['Close'], window=14).rsi()
-    macd = ta.trend.MACD(df['Close'])
+    close = df['Close'].squeeze()
+    df['SMA50'] = close.rolling(50).mean()
+    df['SMA200'] = close.rolling(200).mean()
+    df['EMA20'] = close.ewm(span=20, adjust=False).mean()
+    df['RSI'] = ta.momentum.RSIIndicator(close, window=14).rsi()
+    macd = ta.trend.MACD(close)
     df['MACD'] = macd.macd()
     df['MACD_Signal'] = macd.macd_signal()
-    df['BB_High'] = ta.volatility.BollingerBands(df['Close']).bollinger_hband()
-    df['BB_Low'] = ta.volatility.BollingerBands(df['Close']).bollinger_lband()
+    df['BB_High'] = ta.volatility.BollingerBands(close).bollinger_hband()
+    df['BB_Low'] = ta.volatility.BollingerBands(close).bollinger_lband()
     return df
 
 # -------- FVG Detection --------
@@ -82,7 +80,7 @@ def multi_tf_signal(df_1h, df_3m, fvg_1h, fvg_3m, model, features):
 
 # -------- Load Data --------
 df_1h = fetch_data("GC=F","90d","1h")
-df_3m = fetch_data("GC=F","7d","3m")
+df_3m = fetch_data("GC=F","7d","5m")
 df_1h = calculate_indicators(df_1h)
 df_3m = calculate_indicators(df_3m)
 
@@ -112,47 +110,4 @@ def plot_chart(df, title, fvg_list):
     st.plotly_chart(fig)
 
 plot_chart(df_1h, "1H Chart with FVG", fvg_1h)
-plot_chart(df_3m, "3M Chart with FVG", fvg_3m)
-
-pandas
-numpy
-ta
-yfinance
-scikit-learn
-plotly
-streamlit
-
-# XAU/USD Multi-Timeframe Trading Dashboard
-
-Streamlit dashboard for Gold (XAU/USD) trading signals with:
-
-- 1H and 3M timeframes
-- SMA, EMA, RSI, MACD, Bollinger Bands
-- FVG zones detection
-- ML prediction probabilities
-
-## Deploy on Streamlit Cloud (Free)
-1. Push this repo to GitHub.
-2. Sign in at https://streamlit.io/cloud with GitHub.
-3. Click "New App", select repo, branch, and `dashboard.py`.
-4. Access your live dashboard via URL.
-
-## Run Locally
-```bash
-pip install -r requirements.txt
-streamlit run dashboard.py
-
-
----
-
-✅ **Next Step:**  
-
-1. **Download these three files** into a folder called `xau_trading_dashboard`.  
-2. **Push the folder to GitHub**.  
-3. **Deploy on Streamlit Cloud** following the instructions in the README.  
-
-Once deployed, you’ll get a **live URL** accessible anywhere.  
-
-If you want, I can also **write the zip file and give a direct download link** so you don’t have to copy-paste manually.  
-
-Do you want me to do that?
+plot_chart(df_3m, "5M Chart with FVG", fvg_3m)
